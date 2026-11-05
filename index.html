@@ -2659,7 +2659,7 @@ function paintAnswered(){
   const ts=teamList();const n=ts.filter(t=>H.answers[t.id]!==undefined).length;
   el.innerHTML=`<div class="eyebrow">Atbildējušas ${n} no ${ts.length} komandām</div><div class="answered">${ts.map(t=>`<span class="${H.answers[t.id]!==undefined?"yes":""}">${esc(t.name)}</span>`).join("")}</div>`;
 }
-function hostTop(extra=""){return `<div class="topbar">${brand}<div class="spacer"></div>${H.code?`<span class="chip">Spēles kods <b>${H.code}</b></span>`:""}${extra}${H.code?`<button class="ghost" data-a="teacher">Skolotāja skats</button>`:""}<button class="ghost" data-a="fs">Pilnekrāns</button></div>`}
+function hostTop(extra=""){return `<div class="topbar">${brand}<div class="spacer"></div>${H.code?`<span class="chip">Spēles kods <b>${H.code}</b></span>`:""}${extra}${H.code?`<button class="ghost" data-a="teacher">Skolotāja skats</button><button class="ghost" data-a="askRestart">Sākt no jauna</button>`:""}<button class="ghost" data-a="fs">Pilnekrāns</button></div>`}
 
 function vHome(){
   const s=H.settings;
@@ -2732,7 +2732,7 @@ function vFinal(){
   return hostTop()+`<div class="final"><p class="eyebrow">Spēles rezultāti</p>
    <h1>${all&&r.length?`Uzvar ${w.map(esc).join(" un ")}!`:"Un uzvar…"}</h1>
    <div class="podium">${r.map((x,i)=>i>=from?`<div class="place ${x.p===1?"first":""}"><span class="p">${x.p}.</span><span>${esc(x.t)}</span><span class="s">${x.s} ${x.s===1?"punkts":"punkti"}</span></div>`:`<div class="place hidden-slot"><span class="p">${x.p}.</span><span>?</span></div>`).join("")}</div>
-   <div class="row">${all?`<button data-a="back">Atgriezties spēlē</button><button class="primary" data-a="endGame">Beigt un izveidot jaunu spēli</button>`:`<button data-a="back">Atpakaļ</button><button class="primary" data-a="revealNext">Atklāt nākamo vietu</button>`}</div></div>`;
+   <div class="row">${all?`<button data-a="back">Atgriezties spēlē</button><button class="primary" data-a="endGame">Beigt un izveidot jaunu spēli</button>`:`<button data-a="back">Atpakaļ</button><button data-a="askRestart">Sākt no jauna</button><button class="primary" data-a="revealNext">Atklāt nākamo vietu</button>`}</div></div>`;
 }
 function vTeacher(){
   const ts=teamList();
@@ -2750,6 +2750,7 @@ function hostRender(){
   else if(st.phase==="final")h=vFinal();
   else h=vHostQ();
   if(H.overlay&&H.code)h+=vTeacher();
+  if(H.confirm&&H.code)h+=`<div class="overlay" data-a="noRestart"><div class="sheet" role="dialog" aria-label="Sākt no jauna" data-stop="1"><h3>Sākt jaunu spēli?</h3><p class="note" style="margin:0">Pašreizējā spēle beigsies, un tās punkti tiks dzēsti. Komandām būs jānoskenē jaunais QR kods.</p><div class="row"><span class="spacer"></span><button data-a="noRestart">Atcelt</button><button class="primary" data-a="restart">Jā, sākt no jauna</button></div></div></div>`;
   app.innerHTML=h;
   if(H.showLobby&&st&&st.phase!=="lobby"){const r=app.querySelector('[data-a="startGame"]');if(r){r.textContent="Atpakaļ pie spēles";r.disabled=false;r.dataset.a="hideLobby"}}
   paintAnswered();if(st)paintRing(remOf(st));
@@ -2777,6 +2778,9 @@ function hostClick(a,el){
    case "revealNext":H.revealN++;hostRender();break;
    case "back":setState({phase:"board"});break;
    case "endGame":endGame();break;
+   case "askRestart":H.confirm=true;hostRender();break;
+   case "noRestart":H.confirm=false;hostRender();break;
+   case "restart":H.confirm=false;endGame();break;
   }
 }
 
@@ -2869,9 +2873,9 @@ app.addEventListener("click",e=>{
 });
 document.addEventListener("keydown",e=>{
   if(MODE!=="host"||e.target.matches("input,select,textarea"))return;
-  if(e.key==="Escape"&&H.overlay){H.overlay=false;hostRender();return}
+  if(e.key==="Escape"&&(H.overlay||H.confirm)){H.overlay=false;H.confirm=false;hostRender();return}
   if((e.key==="t"||e.key==="T")&&H.code){H.overlay=!H.overlay;hostRender();return}
-  if(H.overlay||e.target.closest("button"))return;
+  if(H.overlay||H.confirm||e.target.closest("button"))return;
   if(e.key===" "||e.key==="Enter"){
     const ph=H.st?.phase;const map={discuss:"showOpts",answer:"reveal",locked:"reveal",reveal:moreInRound()?"next":"endRound",final:"revealNext"};
     const b=map[ph]&&document.querySelector(`.footer [data-a="${map[ph]}"], .final [data-a="${map[ph]}"]`);if(b){e.preventDefault();b.click()}
